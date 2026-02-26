@@ -31,10 +31,14 @@ jobs:
       - name: Run Tests
         run: npx vitest run
 
-      # 第五步：執行 Lint 檢查（就是你在本地跑的那套）
+      # 第六步：跑完測試後順便檢查 TypeScript 型別
+      - name: Type Check
+        run: npx tsc --noEmit
+
+      # 第六步：執行 Lint 檢查（就是你在本地跑的那套）
       - name: Run Lint
         run: npm run lint
 
-      # 第六步：嘗試打包專案 (確保編譯不會噴錯)
+      # 第七步：嘗試打包專案 (確保編譯不會噴錯)
       - name: Build Project
         run: npm run build
