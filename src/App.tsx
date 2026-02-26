@@ -6,10 +6,6 @@ import "./App.css";
 function App() {
   const [count, setCount] = useState(0);
 
-  const num = 0;
-  const name = "jun";
-  const age = 31;
-
   return (
     <>
       <div>
