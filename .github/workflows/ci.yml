@@ -1,0 +1,36 @@
+name: CI Check
+
+# 什麼時候觸發這個機器人？
+on:
+  push:
+    branches: [main] # 當有人 push 到 main 分支時
+  pull_request:
+    branches: [main] # 當有人對 main 發 PR 時
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest # 使用最新的 Linux 虛擬機
+
+    steps:
+      # 第一步：把你的程式碼複製到虛擬機上
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 第二步：安裝 Node.js 環境
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm" # 幫你把套件快取起來，下次跑會變快
+
+      # 第三步：安裝套件 (使用 npm ci 比 install 更嚴格、更乾淨)
+      - name: Install dependencies
+        run: npm ci
+
+      # 第四步：執行 Lint 檢查（就是你在本地跑的那套）
+      - name: Run Lint
+        run: npm run lint
+
+      # 第五步：嘗試打包專案 (確保編譯不會噴錯)
+      - name: Build Project
+        run: npm run build
