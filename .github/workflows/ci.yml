@@ -27,10 +27,14 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # 第四步：執行 Lint 檢查（就是你在本地跑的那套）
+      # 第四步：打包前先跑測試
+      - name: Run Tests
+        run: npx vitest run
+
+      # 第五步：執行 Lint 檢查（就是你在本地跑的那套）
       - name: Run Lint
         run: npm run lint
 
-      # 第五步：嘗試打包專案 (確保編譯不會噴錯)
+      # 第六步：嘗試打包專案 (確保編譯不會噴錯)
       - name: Build Project
         run: npm run build
