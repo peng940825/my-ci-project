@@ -7,6 +7,7 @@ function App() {
   const [count, setCount] = useState(0);
 
   const num = 0;
+  const name = "jun";
 
   return (
     <>
