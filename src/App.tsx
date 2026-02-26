@@ -8,6 +8,7 @@ function App() {
 
   const num = 0;
   const name = "jun";
+  const age = 31;
 
   return (
     <>
