@@ -15,6 +15,8 @@ jobs:
       # 第一步：把你的程式碼複製到虛擬機上
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # 【關鍵】抓取完整 Git 歷史，否則 commitlint 抓不到 PR 的提交紀錄
 
       # 第二步：安裝 Node.js 環境
       - name: Set up Node.js
