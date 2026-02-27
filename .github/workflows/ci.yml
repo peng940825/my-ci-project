@@ -29,7 +29,12 @@ jobs:
 
       # 第四步：檢查 commit 格式
       - name: Lint Commit Messages
-        uses: wagoid/commitlint-github-action@v5
+        run: |
+          if [ "${{ github.event_name }}" == "pull_request" ]; then
+            npx commitlint --from ${{ github.event.pull_request.base.sha }} --to ${{ github.event.pull_request.head.sha }} --verbose
+          else
+            npx commitlint --from ${{ github.event.before }} --to ${{ github.sha }} --verbose
+          fi
 
       # 第五步：打包前先跑測試
       - name: Run Tests
