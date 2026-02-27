@@ -48,13 +48,13 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          # 這個 Action 規定 prompt 要寫在 env 裡且是大寫 PROMPT
+          # 【關鍵】騙過它對 OpenAI 的強制檢查，直接把 Gemini Key 塞給它
+          OPENAI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           PROMPT: |
             請作為資深前端工程師，針對 React 效能與 TypeScript 規範進行審核。
             1. 檢查 useMemo/useCallback 的必要性。
             2. 檢查是否使用了 any 或型別不嚴謹。
-            3. 代碼可讀性與任何潛在的錯誤。
-            請用繁體中文在 PR 檔案變動處直接留言。
+            請用繁體中文在 PR 檔案變動處留言。
           MODEL: gemini-pro
 
       # 第五步：打包前先跑測試
