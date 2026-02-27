@@ -27,7 +27,21 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # 第四步：打包前先跑測試
+      # 第四步：檢查 commit 格式
+      - name: Lint Commit Messages
+        run: |
+          # 確保我們有足夠的歷史紀錄
+          git fetch origin ${{ github.base_ref || github.ref_name }} --depth=100
+
+          if [ "${{ github.event_name }}" == "pull_request" ]; then
+            # PR 環境：檢查從目標分支 (base) 到目前的差異
+            npx commitlint --from origin/${{ github.base_ref }} --to HEAD --verbose
+          else
+            # Push 環境：只檢查最後一個 commit (如果不是首個 commit)
+            npx commitlint --from HEAD~1 --to HEAD --verbose || npx commitlint --from HEAD --verbose
+          fi
+
+      # 第五步：打包前先跑測試
       - name: Run Tests
         run: npx vitest run
 
@@ -35,10 +49,10 @@ jobs:
       - name: Type Check
         run: npx tsc --noEmit
 
-      # 第六步：執行 Lint 檢查（就是你在本地跑的那套）
+      # 第七步：執行 Lint 檢查（就是你在本地跑的那套）
       - name: Run Lint
         run: npm run lint
 
-      # 第七步：嘗試打包專案 (確保編譯不會噴錯)
+      # 第八步：嘗試打包專案 (確保編譯不會噴錯)
       - name: Build Project
         run: npm run build
