@@ -51,61 +51,53 @@ jobs:
           # 1. 取得代碼變動
           DIFF=$(git diff origin/main...HEAD)
 
-          # 2. 建立 Node 腳本，副檔名改為 .cjs 以繞過 ESM 檢查
+          # 2. 建立現代化的審核腳本
           cat << 'EOF' > review.cjs
-          const { execSync } = require('child_process');
-          const https = require('https');
           const fs = require('fs');
 
-          const diff = process.env.DIFF_CONTENT;
-          const apiKey = process.env.GEMINI_API_KEY;
+          async function main() {
+            const diff = process.env.DIFF_CONTENT;
+            const apiKey = process.env.GEMINI_API_KEY;
 
-          if (!diff) {
-            fs.writeFileSync('review.txt', '這次 PR 沒有明顯的代碼變動。');
-            process.exit(0);
+            if (!diff || diff.length < 10) {
+              fs.writeFileSync('review.txt', '✅ 偵測到變動極小，AI 判斷無需細節審核。');
+              return;
+            }
+
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+            
+            try {
+              const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  contents: [{ parts: [{ text: `你是一位資深前端專家。請針對以下 React 與 TS 代碼變動給出具體的優化建議（特別是效能與型別）：\n\n${diff}` }] }]
+                })
+              });
+
+              const resData = await response.json();
+              
+              if (resData.error) {
+                fs.writeFileSync('review.txt', `❌ API 報錯: ${resData.error.message}`);
+                return;
+              }
+
+              const aiText = resData.candidates?.[0]?.content?.parts?.[0]?.text || "AI 無法產生具體建議。";
+              fs.writeFileSync('review.txt', `### 🤖 AI Code Review 報告\n\n${aiText}`);
+            } catch (err) {
+              fs.writeFileSync('review.txt', `❌ 腳本執行錯誤: ${err.message}`);
+            }
           }
 
-          const data = JSON.stringify({
-            contents: [{
-              parts: [{
-                text: `請作為資深前端工程師，針對以下 React 效能與 TS 規範進行 Review，並用繁體中文給出建議：\n\n${diff}`
-              }]
-            }]
-          });
-
-          const options = {
-            hostname: 'generativelanguage.googleapis.com',
-            path: `/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' }
-          };
-
-          const req = https.request(options, (res) => {
-            let body = '';
-            res.on('data', (d) => body += d);
-            res.on('end', () => {
-              try {
-                const response = JSON.parse(body);
-                const text = response.candidates[0].content.parts[0].text;
-                fs.writeFileSync('review.txt', text);
-              } catch (e) {
-                fs.writeFileSync('review.txt', 'AI 審核暫時無法產生成果。');
-              }
-            });
-          });
-
-          req.on('error', (e) => { process.exit(1); });
-          req.write(data);
-          req.end();
+          main();
           EOF
 
-          # 3. 執行腳本（注意檔名改為 .cjs）
+          # 3. 執行腳本
           export DIFF_CONTENT="$DIFF"
           node review.cjs
 
-          sleep 5
-
-          # 4. 使用 GitHub CLI 留言
+          # 4. 等待腳本完成並留言
+          sleep 3
           gh pr comment ${{ github.event.pull_request.number }} --body-file review.txt
 
       # 第五步：打包前先跑測試
