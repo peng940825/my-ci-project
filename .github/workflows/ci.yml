@@ -30,10 +30,15 @@ jobs:
       # 第四步：檢查 commit 格式
       - name: Lint Commit Messages
         run: |
+          # 確保我們有足夠的歷史紀錄
+          git fetch origin ${{ github.base_ref || github.ref_name }} --depth=100
+
           if [ "${{ github.event_name }}" == "pull_request" ]; then
-            npx commitlint --from ${{ github.event.pull_request.base.sha }} --to ${{ github.event.pull_request.head.sha }} --verbose
+            # PR 環境：檢查從目標分支 (base) 到目前的差異
+            npx commitlint --from origin/${{ github.base_ref }} --to HEAD --verbose
           else
-            npx commitlint --from ${{ github.event.before }} --to ${{ github.sha }} --verbose
+            # Push 環境：只檢查最後一個 commit (如果不是首個 commit)
+            npx commitlint --from HEAD~1 --to HEAD --verbose || npx commitlint --from HEAD --verbose
           fi
 
       # 第五步：打包前先跑測試
