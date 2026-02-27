@@ -43,70 +43,67 @@ jobs:
             npx commitlint --from HEAD~1 --to HEAD --verbose || npx commitlint --from HEAD --verbose
           fi
 
-      - name: AI Code Review (Custom Script)
+      - name: AI Code Review (Auto-Detect Model)
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # 1. 取得代碼變動
           DIFF=$(git diff origin/main...HEAD)
 
-          # 2. 建立腳本：換成 v1 穩定版網址與模型名稱
           cat << 'EOF' > review.cjs
           const fs = require('fs');
 
           async function main() {
             const diff = process.env.DIFF_CONTENT;
             const apiKey = process.env.GEMINI_API_KEY;
+            const baseUrl = "https://generativelanguage.googleapis.com/v1beta";
 
-            if (!diff || diff.length < 10) {
-              fs.writeFileSync('review.txt', '✅ 偵測到變動極小，AI 判斷無需細節審核。');
-              return;
-            }
-
-            // 【關鍵修正】改用 v1 正式版 API 與最新的模型名稱標籤
-            const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
-            
             try {
-              const response = await fetch(url, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  contents: [{ 
-                    parts: [{ 
-                      text: `你是一位資深前端專家。請針對以下 React 與 TypeScript 代碼變動給出具體的優化建議（特別是效能與型別）：\n\n${diff}` 
-                    }] 
-                  }]
-                })
-              });
-
-              const resData = await response.json();
+              // 1. 【核心改進】先列出所有可用模型，找出真正的 Flash 標籤
+              const listRes = await fetch(`${baseUrl}/models?key=${apiKey}`);
+              const listData = await listRes.json();
               
-              if (resData.error) {
-                // 如果 API 還有問題，我們直接印出 JSON 方便 Debug
-                fs.writeFileSync('review.txt', `❌ API 報錯: ${resData.error.message}\n(Code: ${resData.error.code})`);
+              if (!listData.models) {
+                fs.writeFileSync('review.txt', `❌ 無法取得模型清單: ${JSON.stringify(listData)}`);
                 return;
               }
 
+              // 優先找 1.5-flash，找不到就找 pro，再找不到就隨便抓一個有 generateContent 的
+              const model = listData.models.find(m => m.name.includes('gemini-1.5-flash'))?.name || 
+                            listData.models.find(m => m.name.includes('gemini-1.5-pro'))?.name ||
+                            listData.models.find(m => m.supportedGenerationMethods.includes('generateContent'))?.name;
+
+              if (!model) {
+                fs.writeFileSync('review.txt', "❌ 找不到任何支援生成內容的模型。");
+                return;
+              }
+
+              // 2. 使用偵測到的模型名稱進行審核
+              const reviewRes = await fetch(`${baseUrl}/${model}:generateContent?key=${apiKey}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  contents: [{ parts: [{ text: `你是一位資深前端專家。請針對以下 React 與 TS 代碼變動給出具體的優化建議（特別是效能與型別）：\n\n${diff}` }] }]
+                })
+              });
+
+              const resData = await reviewRes.json();
               const aiText = resData.candidates?.[0]?.content?.parts?.[0]?.text;
+              
               if (aiText) {
-                fs.writeFileSync('review.txt', `### 🤖 AI Code Review 報告\n\n${aiText}`);
+                fs.writeFileSync('review.txt', `### 🤖 AI Code Review (由 ${model.split('/').pop()} 產出)\n\n${aiText}`);
               } else {
-                fs.writeFileSync('review.txt', `⚠️ AI 回傳格式異常: ${JSON.stringify(resData).substring(0, 100)}...`);
+                fs.writeFileSync('review.txt', `⚠️ 模型 ${model} 無法產生建議: ${JSON.stringify(resData)}`);
               }
             } catch (err) {
               fs.writeFileSync('review.txt', `❌ 腳本執行錯誤: ${err.message}`);
             }
           }
-
           main();
           EOF
 
-          # 3. 執行腳本
           export DIFF_CONTENT="$DIFF"
           node review.cjs
-
-          # 4. 確保檔案寫入後再留言
           sleep 3
           gh pr comment ${{ github.event.pull_request.number }} --body-file review.txt
 
