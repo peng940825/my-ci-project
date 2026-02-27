@@ -47,15 +47,17 @@ jobs:
         uses: anc95/ChatGPT-CodeReview@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          # 【關鍵】騙過它對 OpenAI 的強制檢查，直接把 Gemini Key 塞給它
+          # 【關鍵修正】把 Gemini Key 塞進 OpenAI 的插槽
           OPENAI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          # 【導航修正】這是最重要的！告訴它改去 Google 的 OpenAI 相容地址
+          OPENAI_API_BASE: https://generativelanguage.googleapis.com/v1beta/openai/
+          # 改用目前最穩定的免費模型名稱
+          MODEL: gemini-1.5-flash
           PROMPT: |
             請作為資深前端工程師，針對 React 效能與 TypeScript 規範進行審核。
             1. 檢查 useMemo/useCallback 的必要性。
             2. 檢查是否使用了 any 或型別不嚴謹。
             請用繁體中文在 PR 檔案變動處留言。
-          MODEL: gemini-pro
 
       # 第五步：打包前先跑測試
       - name: Run Tests
