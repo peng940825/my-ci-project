@@ -51,7 +51,7 @@ jobs:
           # 1. 取得代碼變動
           DIFF=$(git diff origin/main...HEAD)
 
-          # 2. 建立現代化的審核腳本
+          # 2. 建立腳本：換成 v1 穩定版網址與模型名稱
           cat << 'EOF' > review.cjs
           const fs = require('fs');
 
@@ -64,26 +64,36 @@ jobs:
               return;
             }
 
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+            // 【關鍵修正】改用 v1 正式版 API 與最新的模型名稱標籤
+            const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
             
             try {
               const response = await fetch(url, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                  contents: [{ parts: [{ text: `你是一位資深前端專家。請針對以下 React 與 TS 代碼變動給出具體的優化建議（特別是效能與型別）：\n\n${diff}` }] }]
+                  contents: [{ 
+                    parts: [{ 
+                      text: `你是一位資深前端專家。請針對以下 React 與 TypeScript 代碼變動給出具體的優化建議（特別是效能與型別）：\n\n${diff}` 
+                    }] 
+                  }]
                 })
               });
 
               const resData = await response.json();
               
               if (resData.error) {
-                fs.writeFileSync('review.txt', `❌ API 報錯: ${resData.error.message}`);
+                // 如果 API 還有問題，我們直接印出 JSON 方便 Debug
+                fs.writeFileSync('review.txt', `❌ API 報錯: ${resData.error.message}\n(Code: ${resData.error.code})`);
                 return;
               }
 
-              const aiText = resData.candidates?.[0]?.content?.parts?.[0]?.text || "AI 無法產生具體建議。";
-              fs.writeFileSync('review.txt', `### 🤖 AI Code Review 報告\n\n${aiText}`);
+              const aiText = resData.candidates?.[0]?.content?.parts?.[0]?.text;
+              if (aiText) {
+                fs.writeFileSync('review.txt', `### 🤖 AI Code Review 報告\n\n${aiText}`);
+              } else {
+                fs.writeFileSync('review.txt', `⚠️ AI 回傳格式異常: ${JSON.stringify(resData).substring(0, 100)}...`);
+              }
             } catch (err) {
               fs.writeFileSync('review.txt', `❌ 腳本執行錯誤: ${err.message}`);
             }
@@ -96,7 +106,7 @@ jobs:
           export DIFF_CONTENT="$DIFF"
           node review.cjs
 
-          # 4. 等待腳本完成並留言
+          # 4. 確保檔案寫入後再留言
           sleep 3
           gh pr comment ${{ github.event.pull_request.number }} --body-file review.txt
 
