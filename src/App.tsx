@@ -6,7 +6,9 @@ import "./App.css";
 function App() {
   const [count, setCount] = useState(0);
 
-  console.log("測試黑雨");
+  const doSomething = (data: any) => {
+    return data.filter((item: any) => item.id > 0);
+  };
 
   return (
     <>
