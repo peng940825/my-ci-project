@@ -43,21 +43,19 @@ jobs:
             npx commitlint --from HEAD~1 --to HEAD --verbose || npx commitlint --from HEAD --verbose
           fi
 
-        # 【重點新增】AI 自動 Code Review 步驟
       - name: AI Code Review
         uses: anc95/ChatGPT-CodeReview@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }} # 呼叫你剛設定的保險箱金鑰
-        with:
-          # 這裡的指令是關鍵，讓 AI 針對你的興趣點進行評閱
-          prompt: |
-            請作為一名資深前端工程師，針對本次 PR 的變動進行 Code Review。
-            請特別關注：
-            1. React 效能優化 (例如: 不必要的 Re-render, useMemo/useCallback 的使用)。
-            2. TypeScript 型別定義是否嚴謹，避免使用 any。
-            3. 代碼的可讀性與潛在邏輯錯誤。
-            請使用繁體中文，並直接在 PR 的檔案變動處留言。
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          # 這個 Action 規定 prompt 要寫在 env 裡且是大寫 PROMPT
+          PROMPT: |
+            請作為資深前端工程師，針對 React 效能與 TypeScript 規範進行審核。
+            1. 檢查 useMemo/useCallback 的必要性。
+            2. 檢查是否使用了 any 或型別不嚴謹。
+            3. 代碼可讀性與任何潛在的錯誤。
+            請用繁體中文在 PR 檔案變動處直接留言。
+          MODEL: gemini-pro
 
       # 第五步：打包前先跑測試
       - name: Run Tests
